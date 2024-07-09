@@ -1,0 +1,26 @@
+name: crabpot
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python==3.11.*
+  - numpy<2.0
+  - git
+  - pandas
+  - geopandas
+  - rasterio
+  - pyproj
+  - scikit-image
+  - joblib
+  - gdal
+  - matplotlib
+  - h5py
+  - pip
+  - pip:
+      - doodleverse_utils
+      - psutil
+      - tensorflow
+      - tf-keras
+      - transformers
+      - pysimplegui==4.60.5
+      - inference
