@@ -22,5 +22,5 @@ dependencies:
       - tensorflow
       - tf-keras
       - transformers
-      - pysimplegui==4.60.5
+      - pysimplegui
       - inference
