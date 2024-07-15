@@ -1,0 +1,12 @@
+Error Thrown:
+Traceback (most recent call last):
+  File "/home/cbodine/PythonRepos/CrabDetect/detect.py", line 54, in <module>
+    script = os.path.join(scriptDir, os.path.basename(__file__))
+                          ^^^^^^^^^
+NameError: name 'scriptDir' is not defined
+Error Thrown:
+Traceback (most recent call last):
+  File "/home/cbodine/PythonRepos/CrabDetect/detect.py", line 54, in <module>
+    script = os.path.join(scriptDir, os.path.basename(__file__))
+                          ^^^^^^^^^
+NameError: name 'scriptDir' is not defined
