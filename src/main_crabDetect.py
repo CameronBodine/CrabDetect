@@ -80,6 +80,7 @@ def crabpots_master_func(logfilename='',
     ####################################################
     # Check if sonObj pickle exists, append to metaFiles
     metaDir = os.path.join(projDir, "meta")
+    print(metaDir)
     if os.path.exists(metaDir):
         metaFiles = sorted(glob(metaDir+os.sep+"*.meta"))
     else:
@@ -144,11 +145,12 @@ def crabpots_master_func(logfilename='',
         file_name = os.path.join(son.outDir, file_name)
 
         dfDetect.to_csv(file_name, index=False)
-
         del dfDetect
+        # dfDetect = pd.read_csv(file_name)
 
         for son in crabObjs:
             son.crabDetectCSV = file_name
+            son._pickleSon()
 
         print('\n\nCalculating crabpot coordinates...')
 
@@ -168,13 +170,14 @@ def crabpots_master_func(logfilename='',
         # Save as kml
         file_name = os.path.split(son.projDir)[-1] + '.kml'
         file_name = os.path.join(son.outDir, file_name)
-        print(file_name)
 
-        # fiona.supported_drivers['KML'] = 'rw'
-        # gpd.io.file.fiona.drvsupport.supported_drivers['LIBKML'] = 'rw'
         gdf.to_file(file_name, driver='KML')
 
         # Save as shapefile
         file_name = file_name.replace('.kml', '.shp')
         gdf.to_file(file_name)
+
+        # Calculate Humminbird Waypoints
+        crabObjs[0]._calcHumWpt()
+
 

@@ -57,7 +57,7 @@ for root, dirs, files in os.walk(inDir):
             inFiles.append(os.path.join(root, file))
 
 inFiles = sorted(inFiles)
-# inFiles = [inFiles[1]]
+inFiles = [inFiles[1]]
 
 for i, f in enumerate(inFiles):
     print(i, ":", f)
