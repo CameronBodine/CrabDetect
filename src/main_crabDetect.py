@@ -57,7 +57,10 @@ def crabpots_master_func(logfilename='',
                         mosaic_nchunk=50,
                         mosaic=False,
                         map_mosaic=0,
-                        banklines=False):
+                        banklines=False,
+                        gpxToHum=True,
+                        sdDir='',
+                        threshold=0.5):
     '''
     '''
 
@@ -146,6 +149,8 @@ def crabpots_master_func(logfilename='',
 
         dfDetect.to_csv(file_name, index=False)
         del dfDetect
+
+        # For testing
         # dfDetect = pd.read_csv(file_name)
 
         for son in crabObjs:
@@ -177,7 +182,9 @@ def crabpots_master_func(logfilename='',
         file_name = file_name.replace('.kml', '.shp')
         gdf.to_file(file_name)
 
-        # Calculate Humminbird Waypoints
-        crabObjs[0]._calcHumWpt()
+        if gpxToHum:
+
+            # Calculate Humminbird Waypoints
+            crabObjs[0]._calcHumWpt(sdDir, threshold)
 
 
