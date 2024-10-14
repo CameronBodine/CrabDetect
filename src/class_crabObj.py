@@ -26,6 +26,134 @@ class crabObj(rectObj):
 
         return
     
+    def _crop_image(self, img, cw=250, ch=250, s=50):
+
+        output = []
+
+        img_width, img_height = img.shape
+        # Calculate number of crops in both directions
+        x_offsets = range(0, img_width - cw + 1, s)
+        y_offsets = range(0, img_height - ch + 1, s)
+        for x in x_offsets:
+            for y in y_offsets:
+                # # Define the cropping box
+                # box = (x, y, x + cw, y + ch)
+                
+                # # Crop the image
+                # cropped_img = img.crop(box)
+
+                cropped_img = img[x:x+cw, y:y+cw]
+
+                output.append([cropped_img, x, y])
+
+        return output
+
+    
+    def _detectCrabPots_moveWin(self, i, export_image=True):
+
+        # Get the model
+        model = inference.get_model(model_id=self.crabModel_id,
+                                    api_key=self.crabModel_api)
+
+        # Get sonMeta df
+        if not hasattr(self, "sonMetaDF"):
+            self._loadSonMeta()
+        df = self.sonMetaDF
+
+        # Get sonDat
+        self._getScanChunkSingle(i)
+        image = self.sonDat
+
+        image = resize(image,
+                       (image.shape[0], 3*image.shape[1]),
+                       mode='reflect',
+                       clip=True,
+                       preserve_range=True)
+
+        # # Expecting three band, so stack
+        # image = np.dstack((image, image, image)).astype('float32')
+
+        # Get crop arrays
+        cropped_imgs = self._crop_image(image, cw=500, ch=500, s=500)
+
+        channel = os.path.split(self.beamName)[-1] #ss_port, ss_star, etc.
+        projName = os.path.split(self.projDir)[-1]
+        file_name = projName + '_' + channel + '_detect_results_' + self._addZero(i) + str(i) + '.png'
+        file_name = os.path.join(self.outDir, file_name)
+
+        for idx, (im, x, y) in enumerate(cropped_imgs):
+            im = np.dstack((im, im, im)).astype('float32')
+            results = model.infer(im)[0]
+            preds = results.predictions
+            
+            if len(preds) > 0:
+
+                results = results.json()
+                results = json.loads(results)
+
+                # Prepare dataframe
+                df = pd.DataFrame.from_dict({'chunk':[i], 'beam':[self.beamName], 'name':[os.path.basename(file_name)]})
+                df1 = pd.json_normalize(results['image'])
+                df1 = df1.rename(columns={'width': 'img_width', 'height': 'img_height'})
+
+                df2 = pd.json_normalize(results['predictions'])
+
+                df = pd.concat([df, df1, df2], axis=1)
+
+                # If multiple predictions in an image
+                if len(df) > 1:
+                    df['chunk'] = i
+                    df['beam'] = self.beamName
+                    df['name'] = os.path.basename(file_name)
+                    df['img_width'] = df.loc[0, 'img_width']
+                    df['img_height'] = df.loc[0, 'img_height']
+
+                # Add offset
+                df['x'] += x
+                df['y'] += y
+
+                if 'dfAll' not in locals():
+                    dfAll = df
+                else:
+                    dfAll = pd.concat([dfAll, df])
+
+        if 'dfAll' in locals():
+            if len(dfAll)>0:
+
+                channel = os.path.split(self.beamName)[-1] #ss_port, ss_star, etc.
+                projName = os.path.split(self.projDir)[-1]
+                file_name = projName + '_' + channel + '_detect_results_' + self._addZero(i) + str(i) + '.png'
+                file_name = os.path.join(self.outDir, file_name)
+
+                cv2.imwrite(file_name, image)
+                original_img = cv2.imread(file_name)
+
+                for i, row in dfAll.iterrows():
+                    print(row)
+
+                    x = row['x']
+                    y = row['y']
+                    width = row['width']
+                    height = row['height']
+                    confidence = row['confidence']
+
+                    x_min = int(x-width/2)
+                    x_max = int(x+width/2)
+                    y_min = int(y-height/2)
+                    y_max = int(y+height/2)
+
+                    cv2.rectangle(original_img, (x_min, y_min), (x_max, y_max), (0, 0, 255), 2)
+                    cv2.putText(original_img, f"{confidence:.3f}", ((x_min + x_max) // 2, y_min), fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=3, color=(0, 0, 255), thickness=5)
+
+                cv2.imwrite(file_name, original_img)
+
+            return df
+        else:
+            return 0
+
+
+
+    
     #=======================================================================
     def _detectCrabPots(self, i, export_image=True):
 
@@ -40,6 +168,14 @@ class crabObj(rectObj):
 
         # Get sonDat
         self._getScanChunkSingle(i)
+
+        # EGN
+        if self.egn:
+            self._egn_wcp(i, df)
+
+            if self.egn_stretch > 0:
+                self._egnDoStretch()
+                
         image = self.sonDat
 
         # Expecting three band, so stack
@@ -91,9 +227,11 @@ class crabObj(rectObj):
                 df['img_width'] = df.loc[0, 'img_width']
                 df['img_height'] = df.loc[0, 'img_height']
 
+            df = df.rename(columns={'name': 'name_long'})
+
             return df
         else:
-            return
+            return 0
 
     #=======================================================================
     def _calcDetectCoords(self,

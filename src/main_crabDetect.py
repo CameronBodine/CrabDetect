@@ -104,7 +104,9 @@ def crabpots_master_func(logfilename='',
 
     api_key = 'w9qOuYiN7EpEMqAYEln2'
     model_name = 'allcrabpotsources'
-    model_version = '7'
+    # model_version = '7'
+    # model_version = '8'
+    model_version = '10'
 
     detectCrabPot = True
     if detectCrabPot:
@@ -131,60 +133,91 @@ def crabpots_master_func(logfilename='',
             # Do prediction (make parallel later)
             print('\n\tDetecting crab pots for', len(chunks), son.beamName, 'chunks')
 
+            # r = Parallel(n_jobs=np.min([len(chunks), threadCnt]), verbose=10)(delayed(son._detectCrabPots_moveWin)(i) for i in chunks)
             r = Parallel(n_jobs=np.min([len(chunks), threadCnt]), verbose=10)(delayed(son._detectCrabPots)(i) for i in chunks)
             # for i in chunks:
             #     son._detectCrabPots(i)
 
-            df = pd.concat(r)
+            # for i in chunks:
+            #     son._detectCrabPots_moveWin(i)
+
+            # Remove None instances
+            # r = r.remove(None)
+            r = [i for i in r if i is not 0]
+
+
+            if len(r)>0:
+                df = pd.concat(r)
+                
+                if 'dfDetect' not in locals():
+                    dfDetect = df
+                else:
+                    dfDetect = pd.concat([dfDetect, df], ignore_index=True)
+
+        if 'dfDetect' in locals():
+
+            # Save predictions to csv
+            projName = os.path.split(son.projDir)[-1]
+            file_name = projName + '_detect_results.csv'
+            file_name = os.path.join(son.outDir, file_name)
+
+            dfDetect.to_csv(file_name, index=False)
+            del dfDetect
+
+            # For testing
+            # dfDetect = pd.read_csv(file_name)
+
+            for son in crabObjs:
+                son.crabDetectCSV = file_name
+                son._pickleSon()
+
+            print('\n\nCalculating crabpot coordinates...')
+
+            for son in crabObjs:
+                r = son._calcDetectCoords()
+
+                if not 'dfDetect' in locals():
+                    dfDetect = r
+                else:
+                    dfDetect = pd.concat([dfDetect, r])
+
+            # Update name
+            # Calculate name
+            for i, row in dfDetect.iterrows():
+                conf = int(row['confidence']*100)
+                if row['class_name'] == 'Crab-Pot':
+                    class_name = 'CP'
+                elif row['class_name'] == 'Maybe-Pot':
+                    class_name = 'MCP'
+                else:
+                    class_name = 'T'
+                wptName = '{} {} {}%'.format(class_name, i, conf)
+                dfDetect.loc[i, 'name'] = wptName
+
+            dfDetect.to_csv(file_name, index=False)
+
+            # Open as geopandas dataframe
+            gdf = gpd.GeoDataFrame(dfDetect, geometry=gpd.points_from_xy(dfDetect['pot_lon'], dfDetect['pot_lat']), crs="EPSG:4326")
             
-            if 'dfDetect' not in locals():
-                dfDetect = df
-            else:
-                dfDetect = pd.concat([dfDetect, df], ignore_index=True)
+            # Save as kml
+            file_name = os.path.split(son.projDir)[-1] + '.kml'
+            file_name = os.path.join(son.outDir, file_name)
 
-        # Save predictions to csv
-        projName = os.path.split(son.projDir)[-1]
-        file_name = projName + '_detect_results.csv'
-        file_name = os.path.join(son.outDir, file_name)
+            gdf.to_file(file_name, driver='KML')
 
-        dfDetect.to_csv(file_name, index=False)
-        del dfDetect
+            # Save as shapefile
+            file_name = file_name.replace('.kml', '.shp')
+            gdf.to_file(file_name)
 
-        # For testing
-        # dfDetect = pd.read_csv(file_name)
+            if gpxToHum:
 
-        for son in crabObjs:
-            son.crabDetectCSV = file_name
-            son._pickleSon()
+                # Calculate Humminbird Waypoints
+                crabObjs[0]._calcHumWpt(sdDir, threshold)
 
-        print('\n\nCalculating crabpot coordinates...')
+        else:
+            print('\n\nNo crab pots detected. Bye Bye!')
+            
 
-        for son in crabObjs:
-            r = son._calcDetectCoords()
-
-            if not 'dfDetect' in locals():
-                dfDetect = r
-            else:
-                dfDetect = pd.concat([dfDetect, r])
-
-        dfDetect.to_csv(file_name, index=False)
-
-        # Open as geopandas dataframe
-        gdf = gpd.GeoDataFrame(dfDetect, geometry=gpd.points_from_xy(dfDetect['pot_lon'], dfDetect['pot_lat']), crs="EPSG:4326")
         
-        # Save as kml
-        file_name = os.path.split(son.projDir)[-1] + '.kml'
-        file_name = os.path.join(son.outDir, file_name)
-
-        gdf.to_file(file_name, driver='KML')
-
-        # Save as shapefile
-        file_name = file_name.replace('.kml', '.shp')
-        gdf.to_file(file_name)
-
-        if gpxToHum:
-
-            # Calculate Humminbird Waypoints
-            crabObjs[0]._calcHumWpt(sdDir, threshold)
 
 
