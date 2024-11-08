@@ -40,6 +40,9 @@ from main_crabDetect import crabpots_master_func
 
 from glob import glob
 
+# For the logfile
+oldOutput = sys.stdout
+
 #============================================
 
 # GUI
@@ -47,17 +50,19 @@ PySimpleGUI_License = 'e3yAJ9MVaOWANplCbmndNNl2VwHvlCwpZTSjIl6DIjkiRGpYc53aRty8a
 import PySimpleGUI as sg
 
 inDirInit = r'/media/cbodine'
-outDirInit = r'/media/cbodine/UDEL_Ubuntu/SynologyDrive/UDEL/Bootcamp/2024/CrabPots/Demo/'
+outDirInit = r'/media/cbodine/UDEL_Ubuntu/SynologyDrive/UDEL/Projects/CrabPots/2024_CrabPotRoundup/ModelPredictions/'
 
 # inDirInit = r'/home/cbodine/Desktop/CrabPotDemo/20241011_Test/'
 # outDirInit = r'/home/cbodine/Desktop/CrabPotDemo/20241011_Test/'
 
-prefixDefault = 'CrabPot_20241011Test_'
+prefixDefault = ''
 cropRangeDefault = 0
 nchunk = 500
 rect_wcp = False
-egn=True
+egn=False
 egn_stretch=1
+
+# aoi = '/home/cbodine/Desktop/CrabPot_Workshop_LiveDemo/Rec00002/PINGMapper_aoi/PINGMapper_aoi_coverage.shp'
 
 
 layout = [
@@ -66,6 +71,7 @@ layout = [
     [sg.Text('Output Folder')],
     [sg.In(key='outDir', size=(80,1)), sg.FolderBrowse(initial_folder=outDirInit)],
     [sg.Text('Project Name Prefix:', size=(20,1)), sg.Input(key='prefix', size=(10,1), default_text=prefixDefault), sg.VerticalSeparator(), sg.Text('Project Name Suffix:', size=(20,1)), sg.Input(key='suffix', size=(10,1))],
+    [sg.Text('Waypoint Prefix:', size=(20,1)), sg.Input(key='wptPrefix', size=(10,1))],
     [sg.Checkbox('Export Detections to Humminbird SD Card', key='gpxToHum', default=True), sg.VerticalSeparator(), sg.Text('Confidence Threshold', size=(20,1)),sg.Slider((0,1), key='threshold', default_value=0.5, resolution=0.01, tick_interval=0.5, orientation='horizontal')],
     [sg.Text('Crop Range:', size=(10,1)), sg.Input(key='cropRange', size=(10,1), default_text=cropRangeDefault)],
     [sg.Text('Position Corrections')],
@@ -265,14 +271,28 @@ for datFile in inFiles:
         params['sdDir'] = inDir
         params['threshold'] = threshold
 
+        # Unique Waypoint name
+        recording = os.path.basename(humFile)
+        recording = recording.split('.')[0]
+        recording = int(recording[3:])
+        wptPrefix = values['wptPrefix']
+        wptPrefix = '{}_{}'.format(wptPrefix, recording)
+        params['wptPrefix'] = wptPrefix
+
         print('\n===========================================')
         print('===========================================')
         print('***** DETECTING CRAB POTS *****')
-        crabpots_master_func(**params)    
+        crabpots_master_func(**params)
+
+        print("\n\nTotal Processing Time: ",datetime.timedelta(seconds = round(time.time() - start_time, ndigits=0)))    
+
+        sys.stdout.log.close()
         
     except Exception as Argument:
         unableToProcessError(logfilename)
         print('\n\nCould not process:', datFile)
+
+    sys.stdout = oldOutput
 
 
         

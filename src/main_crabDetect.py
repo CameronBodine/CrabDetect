@@ -60,9 +60,12 @@ def crabpots_master_func(logfilename='',
                         banklines=False,
                         gpxToHum=True,
                         sdDir='',
-                        threshold=0.5):
+                        threshold=0.5,
+                        wptPrefix=''):
     '''
     '''
+
+    start_time = time.time()
 
     ############
     # Parameters
@@ -181,20 +184,29 @@ def crabpots_master_func(logfilename='',
                 else:
                     dfDetect = pd.concat([dfDetect, r])
 
+            dfDetect.reset_index(drop=True, inplace=True)
+
             # Update name
             # Calculate name
             for i, row in dfDetect.iterrows():
-                conf = int(row['confidence']*100)
-                if row['class_name'] == 'Crab-Pot':
-                    class_name = 'CP'
-                elif row['class_name'] == 'Maybe-Pot':
-                    class_name = 'MCP'
-                else:
-                    class_name = 'T'
-                wptName = '{} {} {}%'.format(class_name, i, conf)
-                dfDetect.loc[i, 'name'] = wptName
+                # conf = int(row['confidence']*100)
+                # if row['class_name'] == 'Crab-Pot':
+                #     class_name = 'CP'
+                # elif row['class_name'] == 'Maybe-Pot':
+                #     class_name = 'MCP'
+                # else:
+                #     class_name = 'T'
+                # wptName = '{} {} {}%'.format(class_name, i, conf)
+                # dfDetect.loc[i, 'name'] = wptName
 
-            dfDetect.to_csv(file_name, index=False)
+                if i < 10:
+                    zeros = '00'
+                elif i < 100:
+                    zeros = '0'
+                else:
+                    zeros = ''
+                wptName = '{}_{}{}'.format(wptPrefix, zeros, i)
+                dfDetect.loc[i, 'name'] = wptName
 
             # Open as geopandas dataframe
             gdf = gpd.GeoDataFrame(dfDetect, geometry=gpd.points_from_xy(dfDetect['pot_lon'], dfDetect['pot_lat']), crs="EPSG:4326")
@@ -216,6 +228,8 @@ def crabpots_master_func(logfilename='',
 
         else:
             print('\n\nNo crab pots detected. Bye Bye!')
+
+    print("\n\nTotal Detection Time: ",datetime.timedelta(seconds = round(time.time() - start_time, ndigits=0))) 
             
 
         
